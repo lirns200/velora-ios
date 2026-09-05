@@ -1,0 +1,95 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches: [main, master, 'codex/**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Show Apple tools
+        run: |
+          xcodebuild -version
+          swift --version
+      - name: Test profile and configuration behavior
+        run: swift test --package-path Packages/VPNCore
+      - name: Test IPA packaging
+        run: python3 -m unittest discover -s scripts/tests -v
+      - name: Checkout pinned libXray
+        run: python3 scripts/build_native.py --checkout-only
+      - name: Set up Go from pinned library
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: Vendor/libxray-source/go.mod
+          cache-dependency-path: Vendor/libxray-source/go.sum
+      - name: Read Xcode version for cache
+        id: xcode
+        run: echo "version=$(xcodebuild -version | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
+      - name: Cache native framework
+        id: native
+        uses: actions/cache@v4
+        with:
+          path: |
+            Vendor/LibXray.xcframework
+            Vendor/libXray-LICENSE
+          key: libxray-${{ runner.os }}-${{ runner.arch }}-${{ steps.xcode.outputs.version }}-${{ hashFiles('scripts/native-lock.json', 'scripts/build_native.py') }}
+      - name: Build Xray for iPhone and simulator
+        if: steps.native.outputs.cache-hit != 'true'
+        run: python3 scripts/build_native.py
+      - name: Collect dependency notices
+        run: python3 scripts/collect_licenses.py
+      - name: Install XcodeGen and generate project
+        run: |
+          brew install xcodegen
+          xcodegen generate --spec project.yml
+      - name: Compile simulator app and VPN extension
+        run: |
+          set -o pipefail
+          xcodebuild -project Velora.xcodeproj -scheme Velora -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/simulator CODE_SIGNING_ALLOWED=NO build > simulator-build.log 2>&1 || { tail -150 simulator-build.log; exit 1; }
+      - name: Compile unsigned iPhone app and VPN extension
+        run: |
+          set -o pipefail
+          xcodebuild -project Velora.xcodeproj -scheme Velora -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' \
+            -derivedDataPath build/device CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" build > device-build.log 2>&1 || { tail -150 device-build.log; exit 1; }
+      - name: Package unsigned IPA
+        run: |
+          mkdir -p artifacts
+          python3 scripts/package_ipa.py build/device/Build/Products/Release-iphoneos/Velora.app artifacts/Velora-unsigned.ipa
+          cp docs/WINDOWS-RU.md artifacts/
+          cp App/Velora.entitlements artifacts/App.entitlements.template
+          cp Tunnel/PacketTunnel.entitlements artifacts/Tunnel.entitlements.template
+          cp THIRD-PARTY-NOTICES.md artifacts/
+          cp Vendor/libXray-LICENSE artifacts/
+          cp -R App/Resources/ThirdPartyLicenses artifacts/
+      - name: Upload IPA for PC signing
+        uses: actions/upload-artifact@v4
+        with:
+          name: Velora-unsigned-IPA
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Apple-build-logs
+          path: '*-build.log'
+          if-no-files-found: ignore
+          retention-days: 7
