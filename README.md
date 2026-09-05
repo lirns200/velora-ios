@@ -2,7 +2,7 @@
 
 Нативный VPN-клиент на SwiftUI с VLESS/Reality и HTTPS-подписками. Разработка с Windows, сборка iOS через GitHub Actions на macOS, неподписанный IPA для подписи на ПК.
 
-**Статус:** исходники и workflow подготовлены. Локально проверены упаковщик IPA и структура исходников. Сборка Xcode и подключение на iPhone ещё не проверены: GitHub-репозиторий, подписывающий профиль и тестовый сервер не предоставлены. Готового скомпилированного IPA в исходниках нет.
+**Сборки:** [GitHub Actions → Build iOS IPA](https://github.com/lirns200/velora-ios/actions/workflows/ios.yml). Неподписанный IPA появляется в артефактах успешного запуска. Установка и подключение на физическом iPhone требуют подходящей подписи и рабочего сервера; эти проверки ещё не выполнены.
 
 ## Что реализовано
 
@@ -20,11 +20,10 @@
 
 Полная пошаговая инструкция: **[docs/WINDOWS-RU.md](docs/WINDOWS-RU.md)**.
 
-1. Создай пустой репозиторий GitHub.
-2. Загрузи исходники с папкой `.github` в корень репозитория.
-3. Открой **Actions → Build iOS IPA → Run workflow** (или дождись сборки после push).
-4. После успешной сборки скачай артефакт **Velora-unsigned-IPA**.
-5. Распакуй ZIP и подпиши `Velora-unsigned.ipa` своей программой на ПК, включая `PacketTunnel.appex`.
+1. Открой [Actions → Build iOS IPA](https://github.com/lirns200/velora-ios/actions/workflows/ios.yml).
+2. Выбери успешный запуск или нажми **Run workflow** для новой сборки.
+3. Скачай артефакт **Velora-unsigned-IPA**.
+4. Распакуй ZIP и подпиши `Velora-unsigned.ipa` своей программой на ПК, включая `PacketTunnel.appex`.
 
 **Подпись должна разрешать Network Extension и общую Keychain-группу у обоих targets.** Обычный sideload-профиль без нужных entitlements не обеспечит работающий VPN. Подробнее — в инструкции. В GitHub не нужны Apple-сертификаты или секреты для неподписанной сборки.
 

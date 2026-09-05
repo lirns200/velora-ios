@@ -45,7 +45,7 @@ final class ProfileStore: ObservableObject {
                 if let subscription = next.subscriptions.first(where: { $0.url == url.absoluteString }) {
                     try next.replaceSubscription(subscription.id, profiles: result.profiles, date: Date())
                 } else {
-                    next.subscriptions.append(Subscription(name: name.isEmpty ? (url.host ?? "Подписка") : String(name.prefix(80)),
+                    next.subscriptions.append(VPNCore.Subscription(name: name.isEmpty ? (url.host ?? "Подписка") : String(name.prefix(80)),
                         url: url.absoluteString, profiles: result.profiles, updatedAt: Date()))
                 }
             } else {
@@ -63,7 +63,7 @@ final class ProfileStore: ObservableObject {
         }
     }
 
-    func refresh(_ subscription: Subscription) async {
+    func refresh(_ subscription: VPNCore.Subscription) async {
         guard !busy, storageAvailable else { return }
         busy = true
         defer { busy = false }
@@ -79,7 +79,7 @@ final class ProfileStore: ObservableObject {
     func deleteLocal(_ profile: ServerProfile) {
         edit { $0.localProfiles.removeAll { $0.id == profile.id } }
     }
-    func deleteSubscription(_ subscription: Subscription) {
+    func deleteSubscription(_ subscription: VPNCore.Subscription) {
         edit { $0.subscriptions.removeAll { $0.id == subscription.id } }
     }
     private func edit(_ action: (inout LibraryState) -> Void) {

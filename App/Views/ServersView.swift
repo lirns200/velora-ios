@@ -5,7 +5,7 @@ struct ServersView: View {
     @EnvironmentObject private var profiles: ProfileStore
     @EnvironmentObject private var vpn: VPNController
     @Binding var showImport: Bool
-    @State private var pendingDeletion: Subscription?
+    @State private var pendingDeletion: VPNCore.Subscription?
     private var locked: Bool { vpn.locked || profiles.busy || !profiles.storageAvailable }
 
     var body: some View {

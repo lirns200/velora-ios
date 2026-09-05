@@ -40,7 +40,7 @@ jobs:
         run: echo "version=$(xcodebuild -version | shasum -a 256 | cut -d ' ' -f 1)" >> "$GITHUB_OUTPUT"
       - name: Cache native framework
         id: native
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: |
             Vendor/LibXray.xcframework
@@ -49,6 +49,14 @@ jobs:
       - name: Build Xray for iPhone and simulator
         if: steps.native.outputs.cache-hit != 'true'
         run: python3 scripts/build_native.py
+      - name: Save compiled native framework
+        if: steps.native.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            Vendor/LibXray.xcframework
+            Vendor/libXray-LICENSE
+          key: ${{ steps.native.outputs.cache-primary-key }}
       - name: Collect dependency notices
         run: python3 scripts/collect_licenses.py
       - name: Install XcodeGen and generate project
